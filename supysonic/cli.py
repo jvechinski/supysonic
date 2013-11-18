@@ -184,7 +184,7 @@ class CLI(cmd.Cmd):
 		else:
 			print "Successfully changed '{}' password".format(name)
 
-if __name__ == "__main__":
+def command_line():
 	if not config.check():
 		sys.exit(1)
 
@@ -198,5 +198,9 @@ if __name__ == "__main__":
 	if len(sys.argv) > 1:
 		CLI().onecmd(' '.join(sys.argv[1:]))
 	else:
-		CLI().cmdloop()
+		CLI().cmdloop()    
+
+if __name__ == "__main__":
+    command_line()
+
 
