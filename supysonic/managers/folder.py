@@ -1,7 +1,7 @@
 # coding: utf-8
 
 import os.path, uuid
-from db import Folder, Artist, session
+from ..db import Folder, Artist, session
 
 class FolderManager:
 	SUCCESS = 0

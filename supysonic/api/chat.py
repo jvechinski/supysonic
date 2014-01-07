@@ -1,8 +1,8 @@
 # coding: utf-8
 
 from flask import request
-from web import app
-from db import ChatMessage, session
+from ..web import app
+from ..db import ChatMessage, session
 
 @app.route('/rest/getChatMessages.view', methods = [ 'GET', 'POST' ])
 def get_chat():

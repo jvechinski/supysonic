@@ -5,10 +5,10 @@ import os.path
 from PIL import Image
 import subprocess
 
-import config, scanner
-from web import app
-from db import Track, Folder, User, now, session
-from api import get_entity
+from .. import config, scanner
+from ..web import app
+from ..db import Track, Folder, User, now, session
+from . import get_entity
 
 def prepare_transcoding_cmdline(base_cmdline, input_file, input_format, output_format, output_bitrate):
 	if not base_cmdline:

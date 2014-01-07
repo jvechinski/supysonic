@@ -1,9 +1,9 @@
 # coding: utf-8
 
 from flask import request
-from web import app
-from db import User
-from managers.user import UserManager
+from ..web import app
+from ..db import User
+from ..managers.user import UserManager
 
 @app.route('/rest/getUser.view', methods = [ 'GET', 'POST' ])
 def user_info():

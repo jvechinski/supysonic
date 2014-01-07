@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from flask import request
-from web import app
+from ..web import app
 
 @app.route('/rest/ping.view', methods = [ 'GET', 'POST' ])
 def ping():

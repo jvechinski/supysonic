@@ -6,8 +6,8 @@ from sqlalchemy.orm import aliased
 import random
 import uuid
 
-from web import app
-from db import *
+from ..web import app
+from ..db import *
 
 @app.route('/rest/getRandomSongs.view', methods = [ 'GET', 'POST' ])
 def rand_songs():

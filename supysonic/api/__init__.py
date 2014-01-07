@@ -5,8 +5,8 @@ import simplejson
 import cgi
 import uuid
 
-from web import app
-from managers.user import UserManager
+from ..web import app
+from ..managers.user import UserManager
 
 @app.before_request
 def set_formatter():

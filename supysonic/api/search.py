@@ -1,8 +1,8 @@
 # coding: utf-8
 
 from flask import request
-from web import app
-from db import Folder, Track, Artist, Album
+from ..web import app
+from ..db import Folder, Track, Artist, Album
 
 @app.route('/rest/search.view', methods = [ 'GET', 'POST' ])
 def old_search():

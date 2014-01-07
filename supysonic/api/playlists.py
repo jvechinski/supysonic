@@ -3,8 +3,8 @@
 from flask import request
 from sqlalchemy import or_, func
 import uuid
-from web import app
-from db import Playlist, User, Track, session
+from ..web import app
+from ..db import Playlist, User, Track, session
 from . import get_entity
 
 @app.route('/rest/getPlaylists.view', methods = [ 'GET', 'POST' ])
