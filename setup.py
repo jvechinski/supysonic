@@ -36,8 +36,8 @@ setup_info = {
         'simplejson',
         'requests >= 0.12.1',        
         'mutagen'
-    ]
-    entry_points: {
+    ],
+    'entry_points': {
         'console_scripts':
             ['supysonic = supysonic.cli:command_line'],
     }        
