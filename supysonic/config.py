@@ -11,8 +11,12 @@ default_config_values = {
 config_sections_when_no_config_file = ['base'] 
 
 config = ConfigParser.RawConfigParser(default_config_values)
+config.checked = False
 
 def check():
+    if config.checked:
+        return True
+    
     try:
         ret = config.read([ '/etc/supysonic', os.path.expanduser('~/.supysonic') ])
     except (ConfigParser.MissingSectionHeaderError, ConfigParser.ParsingError), e:
@@ -24,12 +28,14 @@ def check():
             config.add_section(section)
         
         print("WARNING: No configuration file found, using default values for all configuration parameters")
+        config.checked = True
         return True
 
     #if not config.has_option('base', 'database_uri'):
     #    print("WARNING: No database URI set, using default {}".format(
     #        default_config_values['database_uri']))     
 
+    config.checked = True
     return True
 
 def get(section, name):
