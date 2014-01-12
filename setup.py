@@ -37,16 +37,20 @@ setup_info = {
         'requests >= 0.12.1',        
         'mutagen'
     ],
+    'extras_require': {
+        'mysql': ['MySQL-python'],
+    },
     'entry_points': {
         'console_scripts':
             ['supysonic = supysonic.cli:command_line'],
-    }        
+    }      
 }
 
 if not have_setuptools:
     # Remove unsupported setup_info items if we are stuck with the
     # old and busted distutils.
     del setup_info['install_requires'] 
+    del setup_info['extras_require']
     del setup_info['entry_points']
 
 setup(**setup_info)                                        
