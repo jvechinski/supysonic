@@ -175,6 +175,8 @@ class Album(Base):
         }
         if self.tracks[0].folder.has_cover_art:
             info['coverArt'] = str(self.tracks[0].folder_id)
+        elif self.tracks[0].has_cover_art:
+            info['coverArt'] = str(self.tracks[0].id)
 
         starred = StarredAlbum.query.get((user.id, self.id))
         if starred:
@@ -198,6 +200,7 @@ class Track(Base):
     duration = Column(Integer)
     album_id = Column(UUID, ForeignKey('album.id'))
     bitrate = Column(Integer)
+    has_cover_art = Column(Boolean, default = False)
 
     path = Column(String(4096)) # should be unique, but mysql don't like such large columns
     content_type = Column(String(32))
@@ -241,6 +244,8 @@ class Track(Base):
             info['genre'] = self.genre
         if self.folder.has_cover_art:
             info['coverArt'] = str(self.folder_id)
+        elif self.has_cover_art:
+            info['coverArt'] = str(self.id)
 
         starred = StarredTrack.query.get((user.id, self.id))
         if starred:
@@ -268,7 +273,14 @@ class Track(Base):
         return os.path.splitext(self.path)[1][1:].lower()
 
     def sort_key(self):
-        return (self.album.artist.name + self.album.name + ("%02i" % self.disc) + ("%02i" % self.number) + self.title).lower()
+        return (self.album.name + 
+            ("%02i" % self.disc) + ("%02i" % self.number) + 
+            self.title).lower()
+        
+        # @note Original code is below... not sure why you would want
+        # the artist name in there.  This totally goofs up things
+        # when there is a "various artists" album.
+        #return (self.album.artist.name + self.album.name + ("%02i" % self.disc) + ("%02i" % self.number) + self.title).lower()
 
 class StarredFolder(Base):
     __tablename__ = 'starred_folder'
