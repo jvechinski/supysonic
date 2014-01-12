@@ -26,7 +26,7 @@ setup_info = {
         'supysonic.api',
         'supysonic.managers',        
     ],
-    'package_data': {'supysonic': ['templates/*']},
+    'package_data': {'supysonic': ['templates/*', 'main.wsgi']},
     'description': 'A Python implementation of the Subsonic server API.',
     'url': 'https://github.com/spl0k/supysonic',
     'install_requires': [
