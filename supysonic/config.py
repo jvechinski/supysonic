@@ -17,8 +17,14 @@ def check():
     if config.checked:
         return True
     
+    if 'SUPYSONIC_CONFIG_FILE' in os.environ:
+        config_file_list = os.environ['SUPYSONIC_CONFIG_FILE'] 
+    else:
+        config_file_list = ['/etc/supysonic', 
+                            os.path.expanduser('~/.supysonic')]     
+    
     try:
-        ret = config.read([ '/etc/supysonic', os.path.expanduser('~/.supysonic') ])
+        ret = config.read(config_file_list)
     except (ConfigParser.MissingSectionHeaderError, ConfigParser.ParsingError), e:
         print >>sys.stderr, "Error while parsing the configuration file(s):\n%s" % str(e)
         return False
