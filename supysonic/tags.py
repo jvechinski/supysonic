@@ -212,6 +212,7 @@ class MetaTag(object):
         if name in self.tags and self.tags[name] is not None:
             return self.tags[name]
         
+        raise AttributeError
 
 class CoverTag(object):
     """
@@ -305,3 +306,5 @@ class CoverTag(object):
     def __getattr__(self, name):
         if name in self.coverart and self.coverart[name] is not None:
             return self.coverart[name]
+
+        raise AttributeError
