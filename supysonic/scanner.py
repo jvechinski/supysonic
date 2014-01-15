@@ -13,28 +13,49 @@ class Scanner:
     def __init__(self, session):
         self.__session = session
         self.__tracks  = db.Track.query.all()
+        self.__albums = db.Album.query.all()
         self.__artists = db.Artist.query.all()
         self.__folders = db.Folder.query.all()
+        self.__cover_art = db.CoverArt.query.all()
+
+        #for cover_art in self.__cover_art:
+        #    print '{0} {0.path} {0.id}'.format(cover_art)
+
+        #for track in self.__tracks:
+        #    print '{0} {0.path} {0.cover_art} {0.cover_art_id} {0.album} {0.album_id}'.format(track)
+
+        #for folder in self.__folders:
+        #    print '{0} {0.path} {0.cover_art} {0.cover_art_id}'.format(folder)
+
+        #raise Hell
 
         self.__added_artists = 0
         self.__added_albums  = 0
         self.__added_tracks  = 0
+        self.__added_folders  = 0
+        self.__added_cover_art = 0
         self.__deleted_artists = 0
         self.__deleted_albums  = 0
         self.__deleted_tracks  = 0
+        self.__deleted_folders  = 0
+        self.__deleted_cover_art = 0
 
         extensions = config.get('base', 'scanner_extensions')
         self.__extensions = map(str.lower, extensions.split()) if extensions else None
 
     def scan(self, folder):
-        for root, subfolders, files in os.walk(folder.path):
+        for root, subfolders, files in os.walk(unicode(folder.path)):
             for f in files:
                 path = os.path.join(root, f)
                 if self.__is_valid_path(path):
-                    self.__scan_file(path, folder)
+                    this_folder = self.__find_folder(path, folder)
+                    self.__scan_file(path, folder, this_folder)
         folder.last_scan = int(time.time())
 
     def prune(self, folder):
+        # TODO Fix this!
+        return
+        
         for track in [ t for t in self.__tracks if t.root_folder.id == folder.id and not self.__is_valid_path(t.path) ]:
             self.__remove_track(track)
 
@@ -61,7 +82,7 @@ class Scanner:
             return True
         return os.path.splitext(path)[1][1:].lower() in self.__extensions
 
-    def __scan_file(self, path, folder):
+    def __scan_file(self, path, root_folder, this_folder):
         print path
         tr = filter(lambda t: t.path == path, self.__tracks)
         if tr:
@@ -80,7 +101,8 @@ class Scanner:
             except:
                 return
 
-            tr = db.Track(path = path, root_folder = folder, folder = self.__find_folder(path, folder))
+            tr = db.Track(path = path, root_folder = root_folder, 
+                folder = this_folder)
             self.__tracks.append(tr)
             self.__added_tracks += 1
 
@@ -90,26 +112,49 @@ class Scanner:
         tr.year     = getattr(tag, 'year', None)
         tr.genre    = getattr(tag, 'genre', None)
         tr.duration = tag.length
-        tr.album    = self.__find_album(getattr(tag, 'artist', ''), 
-                                        getattr(tag, 'album', ''))
+        tr.artist   = self.__find_artist(getattr(tag, 'artist', ''))                                                                            
+        #print 'Track artist:', tr.artist
+        tr.album    = self.__find_album(getattr(tag, 'album', ''),  
+                                        tr.artist,
+                                        this_folder)        
         tr.bitrate  = tag.bitrate
         tr.content_type = get_mime(os.path.splitext(path)[1][1:])
         tr.last_modification = os.path.getmtime(path)
         
-        try:
-            cover_tag = CoverTag(path)
-            if getattr(cover_tag, 'data', None):
-                tr.has_cover_art = True 
-        except:    
-            pass
+        #try:
+        cover_tag = CoverTag(path)
+        if getattr(cover_tag, 'data', None):
+            tr.cover_art = self.__find_cover_art(path, 
+                is_embedded=True, data=cover_tag.data)
 
-    def __find_album(self, artist, album):
-        ar = self.__find_artist(artist)
-        al = filter(lambda a: a.name == album, ar.albums)
-        if al:
-            return al[0]
+            #print 'Track cover art:', tr.cover_art
 
-        al = db.Album(name = album, artist = ar)
+            # Also add the cover art to the album if it doesn't 
+            # already have any.
+            if getattr(tr.album, 'cover_art', None) is None:
+                tr.album.cover_art = tr.cover_art
+                
+            # Also add the cover art to this track's folder if
+            # it doesn't have any already.
+            if getattr(tr.folder, 'cover_art', None) is None:
+                tr.folder.cover_art = tr.cover_art
+                print 'Folder cover art: ', tr.folder.cover_art                
+        #except:    
+        #    pass
+
+    def __find_album(self, album, artist, folder):
+        if config.get('base', 'one_album_per_folder'):
+            al = filter(lambda a: a.folder == folder, self.__albums)
+            if al:
+                return al[0]
+        else:
+            al = filter(lambda a: a.name == album, artist.albums)
+            if al:
+                return al[0]
+
+        al = db.Album(name = album, artist = artist, folder = folder)
+        self.__albums.append(al)
+        self.__session.add(al)
         self.__added_albums += 1
 
         return al
@@ -143,8 +188,40 @@ class Scanner:
             else:
                 folder = db.Folder(root = False, name = name, path = full_path, parent = folder)
                 self.__folders.append(folder)
+                self.__added_folders += 1
 
         return folder
+
+    def __find_cover_art(self, path, is_embedded = False, data = None):
+        # If this is not embedded cover art (i.e. a separate image
+        # alongside the music files), then search for an existing
+        # file by path.
+        if not is_embedded:
+            
+            c = filter(lambda c: c.path == path, self.__cover_art)            
+            if c:
+                return c[0]
+
+            hash_value = db.CoverArt.calculate_hash(path=path)
+        
+        # If this is embedded cover art, then we calculate a hash
+        # value over the data, and search for existing cover art
+        # with this same hash (unique id)
+        # (reason: multiple tracks or albums may have the same album
+        # art embedded... no sense creating multiple entries).
+        else:
+            hash_value = db.CoverArt.calculate_hash(path=path, data=data)
+            
+            c = filter(lambda c: c.hash_value == hash_value, self.__cover_art)            
+            if c:
+                return c[0]            
+
+        cover_art = db.CoverArt(path=path, is_embedded=is_embedded, 
+            hash_value=hash_value)
+        self.__cover_art.append(cover_art)
+        self.__added_cover_art += 1
+        
+        return cover_art
 
     def __remove_track(self, track):
         track.album.tracks.remove(track)

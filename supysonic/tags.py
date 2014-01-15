@@ -169,6 +169,8 @@ class MetaTag(object):
             if self.tags[key] is not None:
                 self.tags[key] = int(str(self.tags[key]))
     
+        for key in ['title', 'artist', 'album']:
+            self.tags[key] = self.tags[key].strip()
     
     def insert(self, output_file):
         """

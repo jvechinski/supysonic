@@ -10,7 +10,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import TypeDecorator, BINARY
 from sqlalchemy.dialects.postgresql import UUID as pgUUID
 
-import uuid, datetime, time
+import uuid, datetime, time, hashlib
 import os.path
  
 class UUID(TypeDecorator):
@@ -93,6 +93,24 @@ class User(Base):
             'shareRole': False
         }
 
+class CoverArt(Base):
+    __tablename__ = 'cover_art'
+
+    id = UUID.gen_id_column()
+    path = Column(String(4096))
+    hash_value = Column(String(256))
+    is_embedded = Column(Boolean, default = False)
+    hello = Column(String(256))
+       
+    @staticmethod
+    def calculate_hash(path=None, data=None):
+        if not data:
+            data = file(path, 'rb').read() 
+        
+        hv = hashlib.sha1(data).hexdigest()
+        
+        return hv
+
 class Folder(Base):
     __tablename__ = 'folder'
 
@@ -101,8 +119,9 @@ class Folder(Base):
     name = Column(String(256))
     path = Column(String(4096)) # should be unique, but mysql don't like such large columns
     created = Column(DateTime, default = now)
-    has_cover_art = Column(Boolean, default = False)
     last_scan = Column(Integer, default = 0)
+    cover_art_id = Column(UUID, ForeignKey('cover_art.id'), nullable = True)
+    cover_art = relationship('CoverArt', primaryjoin = CoverArt.id == cover_art_id)    
 
     parent_id = Column(UUID, ForeignKey('folder.id'), nullable = True)
     children = relationship('Folder', backref = backref('parent', remote_side = [ id ]))
@@ -118,8 +137,9 @@ class Folder(Base):
         if not self.root:
             info['parent'] = str(self.parent_id)
             info['artist'] = self.parent.name
-        if self.has_cover_art:
-            info['coverArt'] = str(self.id)
+            
+        if self.cover_art_id:
+            info['coverArt'] = str(self.cover_art_id)
 
         starred = StarredFolder.query.get((user.id, self.id))
         if starred:
@@ -139,19 +159,23 @@ class Artist(Base):
 
     id = UUID.gen_id_column()
     name = Column(String(256), unique = True)
+    cover_art_id = Column(UUID, ForeignKey('cover_art.id'), nullable = True)
+    cover_art = relationship('CoverArt', primaryjoin = CoverArt.id == cover_art_id)    
     albums = relationship('Album', backref = 'artist')
 
     def as_subsonic_artist(self, user):
         info = {
             'id': str(self.id),
             'name': self.name,
-            # coverArt
             'albumCount': len(self.albums)
         }
 
         starred = StarredArtist.query.get((user.id, self.id))
         if starred:
             info['starred'] = starred.date.isoformat()
+
+        if self.cover_art_id:
+            info['coverArt'] = str(self.cover_art_id)
 
         return info
 
@@ -161,7 +185,11 @@ class Album(Base):
     id = UUID.gen_id_column()
     name = Column(String(256))
     artist_id = Column(UUID, ForeignKey('artist.id'))
+    cover_art_id = Column(UUID, ForeignKey('cover_art.id'), nullable = True)
+    cover_art = relationship('CoverArt', primaryjoin = CoverArt.id == cover_art_id)    
     tracks = relationship('Track', backref = 'album')
+    folder_id = Column(UUID, ForeignKey('folder.id'))
+    folder = relationship('Folder', primaryjoin = Folder.id == folder_id)    
 
     def as_subsonic_album(self, user):
         info = {
@@ -173,10 +201,8 @@ class Album(Base):
             'duration': sum(map(lambda t: t.duration, self.tracks)),
             'created': min(map(lambda t: t.created, self.tracks)).isoformat()
         }
-        if self.tracks[0].folder.has_cover_art:
-            info['coverArt'] = str(self.tracks[0].folder_id)
-        elif self.tracks[0].has_cover_art:
-            info['coverArt'] = str(self.tracks[0].id)
+        if self.cover_art_id:
+            info['coverArt'] = str(self.cover_art_id)
 
         starred = StarredAlbum.query.get((user.id, self.id))
         if starred:
@@ -199,8 +225,12 @@ class Track(Base):
     genre = Column(String(256), nullable = True)
     duration = Column(Integer)
     album_id = Column(UUID, ForeignKey('album.id'))
+    artist_id = Column(UUID, ForeignKey('artist.id'))
+    artist = relationship('Artist', primaryjoin = Artist.id == artist_id)    
     bitrate = Column(Integer)
-    has_cover_art = Column(Boolean, default = False)
+    
+    cover_art_id = Column(UUID, ForeignKey('cover_art.id'), nullable = True)
+    cover_art = relationship('CoverArt', primaryjoin = CoverArt.id == cover_art_id)    
 
     path = Column(String(4096)) # should be unique, but mysql don't like such large columns
     content_type = Column(String(32))
@@ -215,14 +245,14 @@ class Track(Base):
     folder_id = Column(UUID, ForeignKey('folder.id'))
     folder = relationship('Folder', primaryjoin = Folder.id == folder_id, backref = 'tracks')
 
-    def as_subsonic_child(self, user):
+    def as_subsonic_child(self, user, from_music_dir=False):
         info = {
             'id': str(self.id),
             'parent': str(self.folder.id),
             'isDir': False,
             'title': self.title,
             'album': self.album.name,
-            'artist': self.album.artist.name,
+            'artist': self.artist.name,
             'track': self.number,
             'size': os.path.getsize(self.path),
             'contentType': self.content_type,
@@ -234,7 +264,7 @@ class Track(Base):
             'discNumber': self.disc,
             'created': self.created.isoformat(),
             'albumId': str(self.album.id),
-            'artistId': str(self.album.artist.id),
+            'artistId': str(self.artist.id),
             'type': 'music'
         }
 
@@ -242,10 +272,9 @@ class Track(Base):
             info['year'] = self.year
         if self.genre:
             info['genre'] = self.genre
-        if self.folder.has_cover_art:
-            info['coverArt'] = str(self.folder_id)
-        elif self.has_cover_art:
-            info['coverArt'] = str(self.id)
+
+        if self.cover_art_id:
+            info['coverArt'] = str(self.cover_art_id)
 
         starred = StarredTrack.query.get((user.id, self.id))
         if starred:
@@ -260,6 +289,14 @@ class Track(Base):
 
         # transcodedContentType
         # transcodedSuffix
+
+        # This hack returns the same "album artist" for all tracks in a
+        # folder to trick old clients that use the folder browse 
+        # method and assume each new album name + artist name 
+        # combination is a new album.
+        if from_music_dir:
+            info['artist'] = self.album.artist.name
+            info['artistId'] = str(self.album.artist.id)
 
         return info
 

@@ -92,7 +92,7 @@ def show_directory():
 	directory = {
 		'id': str(res.id),
 		'name': res.name,
-		'child': [ f.as_subsonic_child(request.user) for f in sorted(res.children, key = lambda c: c.name.lower()) ] + [ t.as_subsonic_child(request.user) for t in sorted(res.tracks, key = lambda t: t.sort_key()) ]
+		'child': [ f.as_subsonic_child(request.user) for f in sorted(res.children, key = lambda c: c.name.lower()) ] + [ t.as_subsonic_child(request.user, from_music_dir=True) for t in sorted(res.tracks, key = lambda t: t.sort_key()) ]
 	}
 	if not res.root:
 		directory['parent'] = str(res.parent_id)

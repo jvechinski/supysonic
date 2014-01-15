@@ -7,7 +7,7 @@ import subprocess
 
 from .. import config, scanner
 from ..web import app
-from ..db import Track, Folder, User, now, session
+from ..db import Track, Folder, User, CoverArt, now, session
 from . import get_entity
 from ..tags import CoverTag
 
@@ -105,28 +105,16 @@ def cover_art():
     track = None
     res_id = None
     
-    status, folder = get_entity(request, Folder)
+    status, cover_art = get_entity(request, CoverArt)
     if not status:        
-        folder = None
-        status, track = get_entity(request, Track)
-        if not status:
-            return track
+        return cover_art
     
-    if folder is not None:
-        cover_art_file = os.path.join(folder.path, 'cover.jpg')
-        res_id = folder.id
-        if not folder.has_cover_art or not os.path.isfile(cover_art_file):
-            return request.error_formatter(70, 'Cover art not found')
-    elif track is not None:
-        if not track.has_cover_art:
-            return request.error_formatter(70, 'Cover art not found')
-            
-        res_id = track.id
+    if cover_art.is_embedded:
         original_dir = os.path.join(config.get('base', 'cache_dir'), 'original')
         if not os.path.exists(original_dir):
             os.makedirs(original_dir)
             
-        cover_art_file = os.path.join(original_dir, str(res_id))
+        cover_art_file = os.path.join(original_dir, str(cover_art.id))
         
         # Have we already extracted the cover art to the temporary
         # directory?  If so, we don't bother to do it again.  Otherwise
@@ -135,14 +123,18 @@ def cover_art():
         # track yet... results are unpredictable.
         if not os.path.isfile(cover_art_file):        
             # Extract cover art from tag data and save to file.
-            cover_tag = CoverTag(track.path)
+            cover_tag = CoverTag(cover_art.path)
             if not cover_tag.data:
                 return request.error_formatter(70, 'Cover art not found')
             else:    
                 f = file(cover_art_file, 'wb')
                 f.write(cover_tag.data)
                 f.close()
-
+    else:
+        cover_art_file = cover_art.path
+        if not os.path.isfile(cover_art_file):
+            return request.error_formatter(70, 'Cover art not found')
+            
     size = request.args.get('size')
     if size:
         try:
@@ -157,7 +149,7 @@ def cover_art():
         return send_file(cover_art_file)
 
     size_path = os.path.join(config.get('base', 'cache_dir'), str(size))
-    path = os.path.join(size_path, str(res_id))
+    path = os.path.join(size_path, str(cover_art.id))
     if os.path.exists(path):
         return send_file(path)
     if not os.path.exists(size_path):

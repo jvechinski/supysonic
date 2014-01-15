@@ -6,6 +6,7 @@ default_config_values = {
     'cache_dir': os.path.join(tempfile.gettempdir(), 'supysonic'),
     # @todo Will this syntax work on Windows???
     'database_uri': 'sqlite:///'+ os.path.expanduser('~/.supysonic.db'),
+    'one_album_per_folder': True,
 }   
 
 config_sections_when_no_config_file = ['base'] 
