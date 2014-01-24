@@ -7,6 +7,7 @@
 # and years.
 
 import os
+import re
 import mutagen
 import mutagen.id3
 import mutagen.mp3
@@ -27,6 +28,7 @@ tags = {
             'discnumber'  : 'TPOS',
             'composer'    : 'TCOM',
             'publisher'   : 'TPUB',
+            'albumartist' : 'TPE2',
         },
         '.wma': {
             'artist'      : 'Author',
@@ -102,6 +104,7 @@ class MetaTag(object):
         'discnumber'    : mutagen.id3.TPOS,
         'composer'      : mutagen.id3.TCOM,
         'lyrics'        : mutagen.id3.USLT,
+        'albumartist'   : mutagen.id3.TPE2,
     }
     __opener = {
         '.mp3'          : mutagen.mp3.Open,
@@ -137,7 +140,8 @@ class MetaTag(object):
                 'composer'      : None,
                 'lyrics'        : None,
                 'length'        : None,
-                'bitrate'       : None,                
+                'bitrate'       : None,  
+                'albumartist'   : None,              
         }
         self.extract()
     
@@ -167,7 +171,9 @@ class MetaTag(object):
         # any non-integer characters.
         for key in ['year', 'tracknumber', 'discnumber']:
             if self.tags[key] is not None:
-                self.tags[key] = int(str(self.tags[key]))
+                match = re.match('\d+', str(self.tags[key]))
+                if match:
+                    self.tags[key] = int(match.group(0))
     
         for key in ['title', 'artist', 'album']:
             self.tags[key] = self.tags[key].strip()

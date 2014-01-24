@@ -114,33 +114,42 @@ class Scanner:
         tr.duration = tag.length
         tr.artist   = self.__find_artist(getattr(tag, 'artist', ''))                                                                            
         #print 'Track artist:', tr.artist
+        
+        # If there is an "album artist" tag, we use that in 
+        # preference to the artist field when creating the
+        # album.
+        if getattr(tag, 'albumartist', None):
+            album_artist = self.__find_artist(tag.albumartist)
+        else:
+            album_artist = tr.artist     
+        
         tr.album    = self.__find_album(getattr(tag, 'album', ''),  
-                                        tr.artist,
+                                        album_artist,
                                         this_folder)        
         tr.bitrate  = tag.bitrate
         tr.content_type = get_mime(os.path.splitext(path)[1][1:])
         tr.last_modification = os.path.getmtime(path)
         
-        #try:
-        cover_tag = CoverTag(path)
-        if getattr(cover_tag, 'data', None):
-            tr.cover_art = self.__find_cover_art(path, 
-                is_embedded=True, data=cover_tag.data)
+        try:
+            cover_tag = CoverTag(path)
+            if getattr(cover_tag, 'data', None):
+                tr.cover_art = self.__find_cover_art(path, 
+                    is_embedded=True, data=cover_tag.data)
 
-            #print 'Track cover art:', tr.cover_art
+                #print 'Track cover art:', tr.cover_art
 
-            # Also add the cover art to the album if it doesn't 
-            # already have any.
-            if getattr(tr.album, 'cover_art', None) is None:
-                tr.album.cover_art = tr.cover_art
-                
-            # Also add the cover art to this track's folder if
-            # it doesn't have any already.
-            if getattr(tr.folder, 'cover_art', None) is None:
-                tr.folder.cover_art = tr.cover_art
-                print 'Folder cover art: ', tr.folder.cover_art                
-        #except:    
-        #    pass
+                # Also add the cover art to the album if it doesn't 
+                # already have any.
+                if getattr(tr.album, 'cover_art', None) is None:
+                    tr.album.cover_art = tr.cover_art
+                    
+                # Also add the cover art to this track's folder if
+                # it doesn't have any already.
+                if getattr(tr.folder, 'cover_art', None) is None:
+                    tr.folder.cover_art = tr.cover_art
+                    print 'Folder cover art: ', tr.folder.cover_art                
+        except:    
+            pass
 
     def __find_album(self, album, artist, folder):
         if config.get('base', 'one_album_per_folder'):
